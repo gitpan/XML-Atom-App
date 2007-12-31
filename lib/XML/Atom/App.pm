@@ -5,7 +5,7 @@ use strict;
 use Carp ();
 use Time::HiRes;
 
-use version; our $VERSION = qv('0.0.1');
+use version; our $VERSION = qv('0.0.2');
 
 use XML::Atom;
 use XML::Atom::Entry;
@@ -228,7 +228,7 @@ XML::Atom::App - quickly create small efficient scripts to syndicate via Atom
 
 =head1 VERSION
 
-This document describes XML::Atom::App version 0.0.1
+This document describes XML::Atom::App version 0.0.2
 
 =head1 SYNOPSIS
 
@@ -236,11 +236,11 @@ A complete Atom feed script:
 
     use XML::Atom::App;
 
-    XML::Atom::App->new(
+    XML::Atom::App->new({
         'title'     => _get_title_string(),
         'id'        => _get_id_string(),
         'particles' => _get_latest_particles_arrayref(),
-    )->output_with_headers();
+    })->output_with_headers();
 
 =head2 EXAMPLE SCRIPTS
 
@@ -256,10 +256,10 @@ If using L<PersistentPerl> this script will only create the $feed, update partic
     use XML::Atom::App;
 
     if (!defined $feed || ref $feed ne 'XML::Atom::App' ) {
-        $feed = XML::Atom::App->new(
+        $feed = XML::Atom::App->new({
             'title' => _get_title_string(),
             'id'    => _get_id_string(),
-        );
+        });
     }
 
     if ( !defined $xml || !xml || !defined $particles || ref $particles ne 'ARRAY' || _particles_need_updated() ) {
@@ -278,10 +278,10 @@ If using L<PersistentPerl> this script will only create the $feed, update partic
     use warnings;
     use XML::Atom::App;
 
-    my $feed = XML::Atom::App->new(
+    my $feed = XML::Atom::App->new({
         'title'     => _get_title_string(),
         'id'        => _get_id_string(),
-    );
+    });
 
     $feed->create_from_atomic_structure( _get_latest_particles_arrayref() );
 
@@ -295,11 +295,11 @@ If using L<PersistentPerl> this script will only create the $feed, update partic
     use warnings;
     use XML::Atom::App;
 
-    my $feed = XML::Atom::App->new(
+    my $feed = XML::Atom::App->new({
         'title'     => _get_title_string(),
         'id'        => _get_id_string(),
         'particles' => _get_latest_particles_arrayref(),
-    );
+    });
 
     # this is done (IE implied) for you w/ 'particles' key to new(): 
     # $feed->create_from_atomic_structure( _get_latest_particles_arrayref() );
@@ -449,7 +449,7 @@ Each item in this array ref is an entry in your feed. It is represented as a has
 
 =over 4
 
-=item title, id, content, etc...
+=item title, id, content, updated, created, etc...
 
 Any L<XML::Atom::Entry> method name may be used as a key. The value can be a valid argument to said function or an array of of valid arguments.
 

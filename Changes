@@ -1,5 +1,8 @@
 Revision history for XML-Atom-App
 
+0.0.2  Mon Dec 31 10:59:06 2007
+      update POD to reflect need for hashref to new() and more sane updated vs. created key use
+
 0.0.1  Mon Dec 24 14:42:03 2007
        Initial release.
 
