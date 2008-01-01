@@ -1,5 +1,8 @@
 Revision history for XML-Atom-App
 
+0.0.3  Mon Dec 31 23:06:35 2007
+      add default link rel=self, fix clear_particles
+
 0.0.2  Mon Dec 31 10:59:06 2007
       update POD to reflect need for hashref to new() and more sane updated vs. created key use
 

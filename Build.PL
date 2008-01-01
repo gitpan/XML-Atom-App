@@ -13,6 +13,7 @@ my $builder = Module::Build->new(
         'XML::Atom'  => 0,
         'XML::Atom::Feed'  => 0,        
         'XML::Atom::Entry' => 0,
+        'XML::Simple' => 0,
     },
     add_to_cleanup      => [ 'XML-Atom-App-*' ],
 );

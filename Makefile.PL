@@ -14,6 +14,7 @@ WriteMakefile(
         'XML::Atom'  => 0,
         'XML::Atom::Feed'  => 0,        
         'XML::Atom::Entry' => 0, 
+        'XML::Simple' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'XML-Atom-App-*' },

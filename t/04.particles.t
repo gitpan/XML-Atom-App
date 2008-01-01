@@ -33,13 +33,13 @@ my $feed = XML::Atom::App->new(
     'title' => 'test',    
 );
 
-ok ( $feed->entries() == 0, 'empty intially');
+ok ( !$feed->entries(), 'empty intially');
 
 $feed->create_from_atomic_structure( $particles );
 ok ( $feed->entries() == 2, 'has particles');
 
 $feed->clear_particles();
-ok ( $feed->entries() == 0, 'clear_particles() removes particles');
+ok ( !$feed->entries(), 'clear_particles() removes particles');
 ok ( $feed->{'time_of_last_create_from_atomic_structure'} == 0, 'clear_particles() resets time key');
 
 $feed->create_from_atomic_structure( $particles );

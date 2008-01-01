@@ -1,14 +1,24 @@
-use Test::More tests => 9;
+use Test::More tests => 13;
 
 BEGIN {
 use_ok( 'XML::Atom::App' );
 }
 
 diag( "Testing XML::Atom::App $XML::Atom::App::VERSION" );
-# use Data::Dumper;my $test = XML::Atom::App->new('particles'=>[{'id'=>1,'content'=>'hello'},{'id'=>2,'content'=>'goodbye'}]);diag(Dumper($test, $test->as_xml));
-# $test->create_from_atomic_structure([{'id'=>2,'content'=>'new two'},{'id'=>3,'content'=>'three being the 3rd number'}]);diag(Dumper($test->as_xml));
-# $test->create_from_atomic_structure([{'id'=>2,'content'=>'new two'},{'id'=>3,'content'=>'three being the 3rd number'}], 1);diag(Dumper($test->as_xml));
-# diag(Dumper($test));
+
+my $test = XML::Atom::App->new({'id'=>'123','title'=>'feed title','particles'=>[{'id'=>3,'content'=>'hello'},{'id'=>2,'content'=>'goodbye'}]});
+
+# diag($test->as_xml);
+my $author = XML::Atom::Person->new();
+$author->name("dan");
+$test->author( $author);
+ok( $test->id() eq '123', 'id key new()');
+ok( $test->title() eq 'feed title', 'title key new()');
+ok( $test->link->rel() eq 'self', 'defsault rel=self new()');
+$test->clear_particles();
+# diag($test->as_xml);
+
+ok( $test->id() eq '123', 'clear_particles() only removes entries)');
 
 ok( ref XML::Atom::App->new() eq 'XML::Atom::App', 'ref type new()' );
 
