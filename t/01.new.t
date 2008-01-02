@@ -14,7 +14,7 @@ $author->name("dan");
 $test->author( $author);
 ok( $test->id() eq '123', 'id key new()');
 ok( $test->title() eq 'feed title', 'title key new()');
-ok( $test->link->rel() eq 'self', 'defsault rel=self new()');
+ok( $test->link->rel() eq 'self', 'default rel=self new()');
 $test->clear_particles();
 # diag($test->as_xml);
 

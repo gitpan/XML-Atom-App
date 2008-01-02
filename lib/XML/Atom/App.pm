@@ -5,7 +5,7 @@ use strict;
 use Carp ();
 use Time::HiRes;
 
-use version; our $VERSION = qv('0.0.3');
+use version; our $VERSION = qv('0.0.4');
 
 use XML::Atom;
 use XML::Atom::Entry;
@@ -70,6 +70,7 @@ sub clear_particles {
     for my $item ( sort keys %{ $xml_struct } ) {
         $item = $new_map{$item} if exists $new_map{$item};
         if ( $feed->can($item) ) {
+            $xml_struct->{$item} = $xml_struct->{$item}{'content'} if ref $xml_struct->{$item} eq 'HASH';
             $feed->$item( ref $xml_struct->{$item} eq 'ARRAY' ? @{$xml_struct->{$item}} : ($xml_struct->{$item}) );
         }
         else {
@@ -272,7 +273,7 @@ XML::Atom::App - quickly create small efficient scripts to syndicate via Atom
 
 =head1 VERSION
 
-This document describes XML::Atom::App version 0.0.3
+This document describes XML::Atom::App version 0.0.4
 
 =head1 SYNOPSIS
 
@@ -383,7 +384,7 @@ An arrayref to create the Atom document from (See "particles" array ref below). 
 
 =item link
 
-Same as the particle array ref 'link' but for the feed (see below). If not specified a simple link is created: rel="self".
+Same as the particle array ref 'link' but for the feed (see below). If not specified a simple link is created: rel="self" (as recommended by L<http://feedvalidator.org>)
 
 =item author
 
