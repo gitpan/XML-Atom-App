@@ -5,7 +5,7 @@ use strict;
 use Carp ();
 use Time::HiRes;
 
-use version; our $VERSION = qv('0.0.4');
+use version; our $VERSION = qv('0.0.5');
 
 use XML::Atom;
 use XML::Atom::Entry;
@@ -21,14 +21,17 @@ my %link_key_map;
 my %author_key_map;
 
 sub new {
-    my ($self, $args_hr) = @_;
+    my ($self, $args_hr, $opt_hr) = @_;
     local $XML::Atom::DefaultVersion = '1.0';
     $args_hr = {} if !defined $args_hr || ref $args_hr ne 'HASH';
+    $opt_hr = {} if !defined $opt_hr || ref $opt_hr ne 'HASH';
     
     my $feed = $self->SUPER::new( 'Version' => delete($args_hr->{'Version'}) || $XML::Atom::DefaultVersion );
 
     my $particles = delete $args_hr->{'particles'} || '';
-    my $link      = exists $args_hr->{'link'} ? delete $args_hr->{'link'} : [{ 'rel' => 'self' }];
+    my $link      = exists $args_hr->{'link'} ? delete $args_hr->{'link'} : undef;
+    $link ||= $opt_hr->{no_self_link} ? undef : [{ 'rel' => 'self' }];
+    my $contrib   = exists $args_hr->{'contributor'} ? delete $args_hr->{'contributor'} : undef;
     
     $feed->{'alert_cant'} = delete $args_hr->{'alert_cant'} || '';
     $feed->{'alert_cant'} = '' if ref $feed->{'alert_cant'} ne 'CODE';
@@ -45,6 +48,7 @@ sub new {
     
     $feed->_do_app_author( $feed, delete $args_hr->{'author'} );
     $feed->_do_app_link( $feed, $link );
+    $feed->_do_app_contributor( $feed, $contrib ) if defined $contrib;
     
     $feed->{'time_of_last_create_from_atomic_structure'} = 0;
     $feed->create_from_atomic_structure( $particles ) if ref $particles eq 'ARRAY';
@@ -58,10 +62,11 @@ sub clear_particles {
     # would love to know of a better way to remove $feed->entries, anyone ?
     my $author = $feed->author();
     my @links  = $feed->link();
+    my @contribs  = $feed->contributors();
 
     use XML::Simple (); 
     my $xml_struct = XML::Simple::XMLin( $feed->as_xml ); 
-    for my $key (qw(xmlns entry link author)) {
+    for my $key (qw(xmlns entry link author contributor)) {
         delete $xml_struct->{$key};
     }
 
@@ -80,6 +85,7 @@ sub clear_particles {
     
     $feed->author( $author ) if $author;
     $feed->add_link($_) for @links;
+    $feed->add_contributor($_) for @contribs;
 
     return $feed;
 }
@@ -118,6 +124,31 @@ sub datetime_as_rfc3339 {
     return $dt->strftime('%FT%T' . $offset);
 }
 
+sub create_entry_from_atomic_structure {
+    my ( $feed, $entry_hr ) = @_;
+    local $XML::Atom::DefaultVersion = $feed->version();
+
+    my $entry = XML::Atom::Entry->new;
+    
+    for my $item (keys %{ $entry_hr } ) {
+        next if $item eq 'author' || $item eq 'link' || $item eq 'contributor' || $item eq 'source';
+        $item = $key_map{$item} if exists $key_map{$item};
+        if ( $entry->can($item) ) {
+            $entry->$item( ref $entry_hr->{$item} eq 'ARRAY' ? @{$entry_hr->{$item}} : $entry_hr->{$item} );
+        }
+        else {
+            $feed->alert_cant( $item, $entry );
+        }
+    }
+
+    $feed->_do_app_author( $entry, $entry_hr->{'author'} );
+    $feed->_do_app_contributor( $entry, $entry_hr->{'contributor'} );
+    $feed->_do_app_link( $entry, $entry_hr->{'link'} );
+    $feed->_do_app_source( $entry, $entry_hr->{'source'} ) if defined $entry_hr->{'source'};
+
+    return $entry;
+}
+
 sub create_from_atomic_structure {
     my ( $feed, $particles, $opts_hr ) = @_;
     $opts_hr = {} if !defined $opts_hr || ref $opts_hr ne 'HASH';
@@ -126,27 +157,35 @@ sub create_from_atomic_structure {
     $feed->clear_particles() if !$opts_hr->{'do_not_clear_particles'};
     
     for my $entry_hr ( @{ $particles } ) {
-        my $entry = XML::Atom::Entry->new;
-    
-        for my $item (keys %{ $entry_hr } ) {
-            next if $item eq 'author' || $item eq 'link';
-            $item = $key_map{$item} if exists $key_map{$item};
-            if ( $entry->can($item) ) {
-                $entry->$item( ref $entry_hr->{$item} eq 'ARRAY' ? @{$entry_hr->{$item}} : $entry_hr->{$item} );
-            }
-            else {
-                $feed->alert_cant( $item, $entry );
-            }
-        }
-    
-        $feed->_do_app_author( $entry, $entry_hr->{'author'} );
-        $feed->_do_app_link( $entry, $entry_hr->{'link'} );
-
+        my $entry = $feed->create_entry_from_atomic_structure( $entry_hr );
         $feed->add_entry($entry);    
     }
     
     $feed->{'time_of_last_create_from_atomic_structure'} = Time::HiRes::time();
     return $feed;
+}
+
+sub _do_app_contributor {
+    my ($feed, $thing, $aref) = @_;
+    return unless defined $aref;
+    $aref = [ $aref ] unless ref $aref eq 'ARRAY';
+
+    foreach my $contrib_ds ( @{$aref} ) {
+        if ( ref $contrib_ds eq 'HASH' ) {
+            my $contrib = XML::Atom::App::Contributor->new;
+            for my $item ( keys %{ $contrib_ds } ) {
+                $item = $author_key_map{$item} if exists $author_key_map{$item};
+                if ( $contrib->can( $item ) ) {
+                    $contrib->$item( ref $contrib_ds->{$item} eq 'ARRAY' ? @{$contrib_ds->{$item}} : $contrib_ds->{$item} );
+                }
+                else {
+                    $feed->alert_cant( $item, $contrib );
+                }
+            }
+
+            $thing->add_contributor($contrib);
+        }
+    }
 }
 
 sub _do_app_author {
@@ -187,6 +226,19 @@ sub _do_app_link {
             $thing->add_link($link);
         }
     }
+}
+
+
+sub _do_app_source {
+    my ($feed, $entry, $source_ds) = @_;
+
+    if ( ref $source_ds ne 'HASH' ) {
+        $entry->source( $source_ds );
+        return;
+    }
+    delete $source_ds->{particles};
+    my $src = __PACKAGE__-> new( $source_ds, {no_self_link=>1} );
+    $entry->source( $src );
 }
 
 sub output_with_headers {
@@ -263,6 +315,17 @@ sub orange_atom_icon_16_16_img_tag {
     return q{<img src="} . orange_atom_icon_16_16_base64() . qq{" width="16" height="16"$attr />};
 }
 
+#
+# This is a workaround for the fact that XML::Atom::Person always pretends
+# to by an author. This minimal change allows a contributor.
+{
+    package XML::Atom::App::Contributor;
+    use base 'XML::Atom::Person';
+
+    sub element_name { 'contributor' }
+}
+
+
 1; 
 
 __END__
@@ -273,7 +336,7 @@ XML::Atom::App - quickly create small efficient scripts to syndicate via Atom
 
 =head1 VERSION
 
-This document describes XML::Atom::App version 0.0.4
+This document describes XML::Atom::App version 0.0.5
 
 =head1 SYNOPSIS
 
@@ -390,11 +453,15 @@ Same as the particle array ref 'link' but for the feed (see below). If not speci
 
 Same as the particle array ref 'author' but for the feed (see below).
 
+=item contributor
+
+Same as the particle array ref 'contributor', but for the feed (see below).
+
 =back
 
 Additionally it takes as a key any XML::Atom::Feed method name which is subsequently called by new() for you. 
 
-The value can be a valid argument to said function or an array of of valid arguments.
+The value can be a valid argument to said function or an array of valid arguments.
 
     my $feed = XML::Atom::App->new({
         'title'     => _get_title_string(),
@@ -411,11 +478,17 @@ is the same as
 
 Any unknown keys will cause and alert_cant().
 
+=head3 create_entry_from_atomic_structure()
+
+Takes the particle hashref representing one entry and does the work needed to turn it into an Atom Entry document. (See "particles" array ref below).
+
+The newly created L<XML::Atom::Entry> object is returned, but not added to the current feed. To add the entry to the L<XML::Atom::Feed> object, use the C<add_entry> method.
+
 =head3 create_from_atomic_structure()
 
 Takes the particle arrayref passed and does all the necessary calls to make it into an Atom document. (See "particles" array ref below).
 
-It clears the previouse particles for you before creating the new one (unless you tell it not to)
+It clears the previous particles for you before creating the new one (unless you tell it not to)
 
 A second argument can be a hashref of options. Currently the only option is the 'do_not_clear_particles' key which if true does not clear the previouse particles. 
 
@@ -510,19 +583,25 @@ Each item in this array ref is an entry in your feed. It is represented as a has
 
 =item title, id, content, updated, created, etc...
 
-Any L<XML::Atom::Entry> method name may be used as a key. The value can be a valid argument to said function or an array of of valid arguments.
+Any L<XML::Atom::Entry> method name may be used as a key. The value can be a valid argument to said function or an array of valid arguments.
 
 =item author
 
 This is a hashref whose keys should be any L<XML::Atom::Person> method name (E.g. name, email, uri, url, homepage). 
 
-The value can be a valid argument to said function or an array of of valid arguments.
+The value can be a valid argument to said function or an array of valid arguments.
 
 =item link
 
 This is an array ref of links. Each item is a hashref whose keys should be any L<XML::Atom::Link> method name (E.g. type, rel, href, hreflang, title, length). 
 
-The value can be a valid argument to said function or an array of of valid arguments.
+The value can be a valid argument to said function or an array of valid arguments.
+
+=item contributors
+
+This is an array ref of hashrefs whose keys should be any L<XML::Atom::Person> method name (See author above).
+
+The value can be a valid argument to said function or an array of valid arguments.
 
 =back
 
